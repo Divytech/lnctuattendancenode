@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #8a2be2;
+  --color-secondary: #00ffcc;
+  --color-dark-bg: #0f0f13;
+  --color-dark-card: #1c1c21;
+  --color-accent: #ff007f;
+}
+
+@layer base {
+  :root {
+    --background: #0f0f13;
+    --foreground: #e0e0e0;
+  }
+  
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/5 backdrop-blur-md border border-white/10;
+  }
+  
+  .glass-card {
+    @apply bg-gray-900/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)];
+  }
+
+  .text-glow {
+    text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+  }
+  
+  .text-glow-primary {
+    text-shadow: 0 0 10px rgba(138, 43, 226, 0.5);
+  }
+}
+
+@keyframes dashboard-card {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Premium Dark Theme Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.25); /* Purple-500/25 */
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 85, 247, 0.45); /* Purple-500/45 */
+}
+
+/* Firefox Scrollbar support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 85, 247, 0.25) rgba(0, 0, 0, 0.2);
+}
