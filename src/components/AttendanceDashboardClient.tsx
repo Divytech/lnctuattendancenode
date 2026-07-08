@@ -102,6 +102,25 @@ export default function AttendanceDashboardClient({
     setIsClient(true);
   }, []);
 
+  useEffect(() => {
+    setProfile(initialProfile);
+    setSummary(initialSummary);
+    setSubjects(initialSubjects);
+    setDetailedLogs(initialDetailedLogs);
+    setHeatmapData(initialHeatmapData);
+    setSemesterOptions(initialSemesterOptions);
+    setIsLoading(false);
+    
+    // Also update heatmap month focus
+    if (initialFilters.end_date) {
+      const d = new Date(initialFilters.end_date);
+      if (!isNaN(d.getTime())) setHeatmapDate(d);
+    } else if (initialDetailedLogs.length > 0) {
+      const times = initialDetailedLogs.map((l: Log) => new Date(l.date).getTime()).filter((t: number) => !isNaN(t));
+      if (times.length > 0) setHeatmapDate(new Date(Math.max(...times)));
+    }
+  }, [initialProfile, initialSummary, initialSubjects, initialDetailedLogs, initialHeatmapData, initialSemesterOptions, initialFilters]);
+
   // Month state for Heatmap
   const [heatmapDate, setHeatmapDate] = useState(() => {
     if (initialFilters.end_date) {
@@ -123,39 +142,14 @@ export default function AttendanceDashboardClient({
     visible: boolean;
   }>({ content: "", x: 0, y: 0, visible: false });
 
-  // Handle data fetching locally to avoid URL query parameters
-  const refreshData = async (semester: string, start: string, end: string) => {
+  // Handle data fetching via router to ensure cookies are sent properly on mobile
+  const refreshData = (semester: string, start: string, end: string) => {
     setIsLoading(true);
-    try {
-      const res = await fetchDashboardData({ semester, start_date: start, end_date: end });
-      if (res.error === "SessionExpired") {
-        router.push("/api/auth/logout?type=accsoft");
-        return;
-      }
-      if (res.data) {
-        setProfile(res.data.profile);
-        setSummary(res.data.summary);
-        setSubjects(res.data.subjects);
-        setDetailedLogs(res.data.detailed_logs);
-        setHeatmapData(res.data.heatmap_data);
-        setSemesterOptions(res.data.semester_options);
-        // Also update heatmap month focus
-        if (end) {
-          const d = new Date(end);
-          if (!isNaN(d.getTime())) setHeatmapDate(d);
-        } else if (res.data.detailed_logs.length > 0) {
-          const times = res.data.detailed_logs.map((l: Log) => new Date(l.date).getTime()).filter((t: number) => !isNaN(t));
-          if (times.length > 0) setHeatmapDate(new Date(Math.max(...times)));
-        }
-      } else if (res.error) {
-        alert(res.error);
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Failed to load data. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+    const params = new URLSearchParams();
+    if (semester) params.set("semester", semester);
+    if (start) params.set("start_date", start);
+    if (end) params.set("end_date", end);
+    router.push(`?${params.toString()}`);
   };
 
   // Handle filter submission

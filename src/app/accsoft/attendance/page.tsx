@@ -5,8 +5,17 @@ import { fetchDashboardData } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
-  const { data, error } = await fetchDashboardData({});
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const params = await searchParams;
+  const semester = typeof params.semester === "string" ? params.semester : "";
+  const start_date = typeof params.start_date === "string" ? params.start_date : "";
+  const end_date = typeof params.end_date === "string" ? params.end_date : "";
+
+  const { data, error } = await fetchDashboardData({ semester, start_date, end_date });
 
   if (error === "SessionExpired") {
     redirect("/api/auth/logout?type=accsoft");
@@ -32,9 +41,9 @@ export default async function DashboardPage() {
       initialHeatmapData={heatmap_data}
       initialSemesterOptions={semester_options}
       initialFilters={{
-        semester: "",
-        start_date: "",
-        end_date: "",
+        semester: semester,
+        start_date: start_date,
+        end_date: end_date,
         subject: "--All--"
       }}
     />
