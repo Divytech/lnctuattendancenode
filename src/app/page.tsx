@@ -114,7 +114,7 @@ function LoginContent() {
       >
         <div className="text-center mb-8">
           <h1 className="text-4xl font-extrabold tracking-tight mb-2 text-glow">
-            LNCT <span className="text-purple-500">Sync</span>
+            LNCTU <span className="text-purple-500">Sync</span>
           </h1>
           <p className="text-gray-400">Your unified university dashboard.</p>
         </div>

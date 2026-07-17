@@ -14,7 +14,7 @@ export interface SessionData {
 // Session configuration
 export const sessionOptions = {
   password: process.env.SECRET_COOKIE_PASSWORD || 'super-secret-lnct-key-change-this-in-production-it-must-be-32-chars-long',
-  cookieName: 'lnct_attendance_session',
+  cookieName: 'lnctu_sync_session',
   cookieOptions: {
     // secure: true should be used in production (HTTPS) but can be false for localhost
     secure: process.env.NODE_ENV === 'production',

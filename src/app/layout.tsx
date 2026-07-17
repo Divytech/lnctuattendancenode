@@ -3,7 +3,7 @@ import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LNCT Attendance - Gen Z Edition",
+  title: "LNCTU Sync",
   description: "Fast, sleek attendance and result tracker.",
 };
 
