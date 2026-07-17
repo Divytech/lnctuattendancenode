@@ -73,8 +73,8 @@ export default function RootLayout({
             });
           `}
         </Script>
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-teal-400/20 blur-[120px] rounded-full pointer-events-none" />
+        <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full pointer-events-none -z-10" />
+        <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-teal-400/20 blur-[120px] rounded-full pointer-events-none -z-10" />
         <main className="flex-grow z-10 w-full max-w-7xl mx-auto px-4 py-8">
           {children}
         </main>

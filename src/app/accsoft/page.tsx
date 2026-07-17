@@ -1,9 +1,13 @@
-import Link from "next/link";
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { 
   Activity, 
   FileCheck,
   FileMinus,
-  ArrowRight 
+  ArrowRight,
+  Loader2
 } from "lucide-react";
 
 const cards = [
@@ -37,17 +41,38 @@ const cards = [
 ] as const;
 
 export default function AccSoftMenuPage() {
+  const router = useRouter();
+  const [loadingHref, setLoadingHref] = useState<string | null>(null);
+
+  const handleCardClick = (href: string) => {
+    if (loadingHref) return; // Prevent double-click
+    setLoadingHref(href);
+    router.push(href);
+  };
+
   return (
     <div className="mx-auto grid w-full max-w-4xl grid-cols-1 sm:grid-cols-2 gap-4 md:grid-cols-3">
       {cards.map((card, index) => {
         const IconComponent = card.icon;
+        const isThisLoading = loadingHref === card.href;
         return (
-          <Link
+          <button
             key={card.href}
-            href={card.href}
+            onClick={() => handleCardClick(card.href)}
+            disabled={!!loadingHref}
             style={{ animationDelay: `${100 + index * 50}ms` }}
-            className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-white/10 bg-slate-900/40 p-5 shadow-lg backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-slate-900/60 ${card.gridClass} ${card.glow} hover:shadow-2xl`}
+            className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-white/10 bg-slate-900/40 p-5 shadow-lg backdrop-blur-xl transition-all duration-300 text-left hover:-translate-y-1 hover:border-white/20 hover:bg-slate-900/60 ${card.gridClass} ${card.glow} hover:shadow-2xl ${loadingHref && !isThisLoading ? 'opacity-40 pointer-events-none' : ''}`}
           >
+            {/* Loading overlay on clicked card */}
+            {isThisLoading && (
+              <div className="absolute inset-0 z-10 bg-slate-950/70 backdrop-blur-sm rounded-3xl flex items-center justify-center animate-in fade-in duration-200">
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="w-7 h-7 text-purple-400 animate-spin" />
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">Loading…</span>
+                </div>
+              </div>
+            )}
+
             {/* Top glass reflection line */}
             <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
             
@@ -80,9 +105,10 @@ export default function AccSoftMenuPage() {
                 Open
               </span>
             </div>
-          </Link>
+          </button>
         );
       })}
     </div>
   );
 }
+

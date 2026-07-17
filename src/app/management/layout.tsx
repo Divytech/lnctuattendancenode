@@ -21,6 +21,8 @@ export default async function ManagementLayout({ children }: { children: React.R
   let name = "Unknown User";
   let enrollment = session.enrollment || "Unknown";
 
+  let shouldRedirect = false;
+
   try {
     // Fetch dashboard to get basic info
     const dashRes = await client.post(MGMT_DASHBOARD_URL, "", {
@@ -29,15 +31,15 @@ export default async function ManagementLayout({ children }: { children: React.R
     });
     
     if (dashRes.status === 302 || (typeof dashRes.data === "string" && dashRes.data.includes("Secure Sign In"))) {
-      redirect("/api/auth/logout?type=ums");
+      shouldRedirect = true;
+    } else {
+      const $ = cheerio.load(dashRes.data);
+      const nameEl = $('h5.mb-1.text-truncate').first();
+      if (nameEl.length) name = nameEl.text().trim();
+      
+      const enrollEl = $('p.text-primary').first();
+      if (enrollEl.length) enrollment = enrollEl.text().trim();
     }
-
-    const $ = cheerio.load(dashRes.data);
-    const nameEl = $('h5.mb-1.text-truncate').first();
-    if (nameEl.length) name = nameEl.text().trim();
-    
-    const enrollEl = $('p.text-primary').first();
-    if (enrollEl.length) enrollment = enrollEl.text().trim();
 
     // Fetch Photo
     const photoRes = await client.post(MGMT_PHOTO_URL, "", {
@@ -51,6 +53,10 @@ export default async function ManagementLayout({ children }: { children: React.R
     }
   } catch (e) {
     console.error("Layout fetch error:", e);
+  }
+
+  if (shouldRedirect) {
+    redirect("/api/auth/logout?type=ums");
   }
 
   return (

@@ -86,6 +86,7 @@ export default function AttendanceDashboardClient({
   const [semesterOptions, setSemesterOptions] = useState(initialSemesterOptions);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
 
   // Filters state
   const [selectedSemester, setSelectedSemester] = useState(initialFilters.semester || semesterOptions.find(o => o.selected)?.value || "");
@@ -142,26 +143,52 @@ export default function AttendanceDashboardClient({
     visible: boolean;
   }>({ content: "", x: 0, y: 0, visible: false });
 
-  // Handle data fetching via router to ensure cookies are sent properly on mobile
-  const refreshData = (semester: string, start: string, end: string) => {
+  // Handle data fetching locally without changing the URL
+  const refreshData = async (semester: string, start: string, end: string, message?: string) => {
     setIsLoading(true);
-    const params = new URLSearchParams();
-    if (semester) params.set("semester", semester);
-    if (start) params.set("start_date", start);
-    if (end) params.set("end_date", end);
-    router.push(`?${params.toString()}`);
+    setLoadingMessage(message || "Loading data…");
+    try {
+      const result = await fetchDashboardData({ semester, start_date: start, end_date: end, subject: selectedSubject });
+      if (result.error === "SessionExpired") {
+        window.location.href = "/api/auth/logout?type=accsoft";
+        return;
+      }
+      if (result.error || !result.data) {
+        alert(result.error || "Failed to load data");
+        return;
+      }
+
+      const { profile: p, summary: s, subjects: sub, detailed_logs, heatmap_data, semester_options } = result.data;
+      setProfile(p);
+      setSummary(s);
+      setSubjects(sub);
+      setDetailedLogs(detailed_logs);
+      setHeatmapData(heatmap_data);
+      setSemesterOptions(semester_options);
+
+      if (result.filters) {
+        setSelectedSemester(result.filters.semester);
+        setStartDate(result.filters.start_date);
+        setEndDate(result.filters.end_date);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("An error occurred while fetching data.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Handle filter submission
   const handleApplyFilters = (e: React.FormEvent) => {
     e.preventDefault();
-    refreshData(selectedSemester, startDate, endDate);
+    refreshData(selectedSemester, startDate, endDate, "Applying filter…");
   };
 
   // Handle semester change instantly
   const handleSemesterChange = (semVal: string) => {
     setSelectedSemester(semVal);
-    refreshData(semVal, startDate, endDate);
+    refreshData(semVal, "", "", "Switching semester…");
   };
 
   // Filter logs locally based on JS subject selector
@@ -329,42 +356,139 @@ export default function AttendanceDashboardClient({
     return points;
   }, [detailedLogs, activeChartRange]);
 
-  // SVG Chart path calculation
+  // SVG Chart path calculation — uses monotone cubic Hermite for smooth curves
+  // (matches Chart.js tension:0.3 from the Python version)
   const svgChartDimensions = { width: 1000, height: 160 };
+  const topPad = 8;
+  const bottomPad = 8;
   const leftPad = 50;
   const rightPad = 15;
   const availWidth = svgChartDimensions.width - leftPad - rightPad;
+  const availHeight = svgChartDimensions.height - topPad - bottomPad;
 
   const chartPathData = useMemo(() => {
-    if (trendPoints.length < 2) return { path: "", fillPath: "", dots: [] as any[] };
+    if (trendPoints.length < 2) return { path: "", fillPath: "", dots: [] as any[], yTicks: [] as number[], yMin: 0, yMax: 100 };
 
-    const minPct = 0;
-    const maxPct = 100;
+    // Auto-scale Y-axis to data range (like Chart.js in the Python version)
+    const rawMin = Math.min(...trendPoints.map(p => p.percent));
+    const rawMax = Math.max(...trendPoints.map(p => p.percent));
+    const dataRange = rawMax - rawMin;
+
+    // Compute nice Y-axis bounds with padding
+    let yMin: number, yMax: number, yStep: number;
+    if (dataRange < 0.5) {
+      // Nearly flat data — show ±1% around the value
+      const mid = (rawMin + rawMax) / 2;
+      yMin = Math.floor(mid - 1);
+      yMax = Math.ceil(mid + 1);
+      yStep = 0.5;
+    } else if (dataRange < 5) {
+      // Tight range — pad by ~40% of range, use 0.5 or 1 step
+      const pad = Math.max(dataRange * 0.4, 0.5);
+      yStep = dataRange < 2 ? 0.2 : 0.5;
+      yMin = Math.floor((rawMin - pad) / yStep) * yStep;
+      yMax = Math.ceil((rawMax + pad) / yStep) * yStep;
+    } else if (dataRange < 20) {
+      // Medium range — use 2 or 5 step
+      const pad = dataRange * 0.15;
+      yStep = dataRange < 10 ? 2 : 5;
+      yMin = Math.floor((rawMin - pad) / yStep) * yStep;
+      yMax = Math.ceil((rawMax + pad) / yStep) * yStep;
+    } else {
+      // Wide range — use 10 or 25 step
+      const pad = dataRange * 0.1;
+      yStep = dataRange < 50 ? 10 : 25;
+      yMin = Math.floor((rawMin - pad) / yStep) * yStep;
+      yMax = Math.ceil((rawMax + pad) / yStep) * yStep;
+    }
+
+    // Clamp to valid percentage range
+    yMin = Math.max(0, yMin);
+    yMax = Math.min(100, yMax);
+    if (yMax - yMin < 1) { yMin = Math.max(0, yMin - 1); yMax = Math.min(100, yMax + 1); }
+
+    // Generate tick values
+    const yTicks: number[] = [];
+    // Use a reasonable precision for ticks
+    const tickDecimals = yStep < 1 ? 1 : 0;
+    for (let v = yMin; v <= yMax + yStep * 0.01; v += yStep) {
+      const rounded = parseFloat(v.toFixed(tickDecimals));
+      if (rounded >= yMin && rounded <= yMax) yTicks.push(rounded);
+    }
+    // Ensure we don't have too many ticks (cap at 8)
+    while (yTicks.length > 8) {
+      const newTicks: number[] = [];
+      for (let i = 0; i < yTicks.length; i += 2) newTicks.push(yTicks[i]);
+      if (!newTicks.includes(yTicks[yTicks.length - 1])) newTicks.push(yTicks[yTicks.length - 1]);
+      yTicks.length = 0;
+      yTicks.push(...newTicks);
+    }
+
     const count = trendPoints.length;
+    const yRange = yMax - yMin;
 
     const points = trendPoints.map((p, idx) => {
       const x = leftPad + (idx / (count - 1)) * availWidth;
-      // Invert Y because SVG coordinates start from top-left (0,0)
-      const y = svgChartDimensions.height - ((p.percent - minPct) / (maxPct - minPct)) * svgChartDimensions.height;
+      const y = topPad + availHeight - ((p.percent - yMin) / yRange) * availHeight;
       return { x, y, ...p };
     });
 
-    let path = `M ${points[0].x} ${points[0].y}`;
-    for (let i = 1; i < points.length; i++) {
-      // Draw smooth line
-      const prev = points[i - 1];
-      const curr = points[i];
-      const cpX1 = prev.x + (curr.x - prev.x) / 3;
-      const cpY1 = prev.y;
-      const cpX2 = prev.x + 2 * (curr.x - prev.x) / 3;
-      const cpY2 = curr.y;
-      path += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${curr.x} ${curr.y}`;
+    // Monotone cubic Hermite spline (Fritsch-Carlson) for smooth, non-overshooting curves
+    const n = points.length;
+    const tangents: number[] = new Array(n).fill(0);
+
+    // 1. Compute slopes between consecutive points
+    const deltas: number[] = [];
+    const dxs: number[] = [];
+    for (let i = 0; i < n - 1; i++) {
+      dxs.push(points[i + 1].x - points[i].x);
+      deltas.push((points[i + 1].y - points[i].y) / dxs[i]);
     }
 
-    const fillPath = `${path} L ${points[points.length - 1].x} ${svgChartDimensions.height} L ${points[0].x} ${svgChartDimensions.height} Z`;
+    // 2. Compute initial tangents
+    tangents[0] = deltas[0];
+    tangents[n - 1] = deltas[n - 2];
+    for (let i = 1; i < n - 1; i++) {
+      if (deltas[i - 1] * deltas[i] <= 0) {
+        tangents[i] = 0;
+      } else {
+        tangents[i] = (deltas[i - 1] + deltas[i]) / 2;
+      }
+    }
 
-    return { path, fillPath, dots: points };
-  }, [trendPoints, availWidth]);
+    // 3. Fritsch-Carlson monotonicity adjustment
+    for (let i = 0; i < n - 1; i++) {
+      if (Math.abs(deltas[i]) < 1e-12) {
+        tangents[i] = 0;
+        tangents[i + 1] = 0;
+      } else {
+        const alpha = tangents[i] / deltas[i];
+        const beta = tangents[i + 1] / deltas[i];
+        const s = alpha * alpha + beta * beta;
+        if (s > 9) {
+          const tau = 3 / Math.sqrt(s);
+          tangents[i] = tau * alpha * deltas[i];
+          tangents[i + 1] = tau * beta * deltas[i];
+        }
+      }
+    }
+
+    // 4. Build SVG cubic bezier path from Hermite tangents
+    let path = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 0; i < n - 1; i++) {
+      const dx = dxs[i] / 3;
+      const cp1x = points[i].x + dx;
+      const cp1y = points[i].y + tangents[i] * dx;
+      const cp2x = points[i + 1].x - dx;
+      const cp2y = points[i + 1].y - tangents[i + 1] * dx;
+      path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${points[i + 1].x} ${points[i + 1].y}`;
+    }
+
+    const chartBottom = topPad + availHeight;
+    const fillPath = `${path} L ${points[n - 1].x} ${chartBottom} L ${points[0].x} ${chartBottom} Z`;
+
+    return { path, fillPath, dots: points, yTicks, yMin, yMax };
+  }, [trendPoints, availWidth, availHeight]);
 
   // ----------------------------------------
   // HEATMAP CALENDAR RENDER COMPUTATION
@@ -476,6 +600,12 @@ export default function AttendanceDashboardClient({
     let peak = null;
     let lowest = null;
 
+    const fmtDate = (dt: Date) => {
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${dayNames[dt.getDay()]}, ${dt.getDate()} ${monthNames[dt.getMonth()]} ${dt.getFullYear()}`;
+    };
+
     if (logsList.length > 0) {
       logsList.sort((a, b) => a.date.getTime() - b.date.getTime());
       let runT = 0, runP = 0;
@@ -508,8 +638,8 @@ export default function AttendanceDashboardClient({
           if (entry.pct > filteredCum[peakIdx].pct) peakIdx = i;
           if (entry.pct < filteredCum[lowIdx].pct) lowIdx = i;
         });
-        peak = filteredCum[peakIdx];
-        lowest = filteredCum[lowIdx];
+        peak = { ...filteredCum[peakIdx], dateFormatted: fmtDate(filteredCum[peakIdx].date) };
+        lowest = { ...filteredCum[lowIdx], dateFormatted: fmtDate(filteredCum[lowIdx].date) };
       }
     }
 
@@ -525,32 +655,38 @@ export default function AttendanceDashboardClient({
   }, [summary, detailedLogs]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-4 sm:pb-10">
 
       {isLoading && (
-        <div className="fixed inset-0 z-[10000] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+        <div className="fixed inset-0 z-[10000] bg-slate-950/60 backdrop-blur-md flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-300">
+            <div className="relative">
+              <div className="w-14 h-14 rounded-full border-[3px] border-purple-500/20"></div>
+              <div className="absolute inset-0 w-14 h-14 rounded-full border-[3px] border-transparent border-t-purple-500 border-r-pink-500 animate-spin"></div>
+            </div>
+            <p className="text-sm font-bold text-slate-300 tracking-wide animate-pulse">{loadingMessage || "Loading…"}</p>
+          </div>
         </div>
       )}
 
       {/* 1. Profile / Header bar */}
-      <header className="flex flex-col md:flex-row items-center justify-between gap-4 glass-card p-6">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]">
+      <header className="flex flex-col md:flex-row items-center justify-between gap-4 glass-card p-4 sm:p-6">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full md:w-auto">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)] shrink-0">
             {profile.pic_url ? (
               <img src={profile.pic_url} alt="Profile" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-slate-800 flex items-center justify-center">
-                <User className="w-8 h-8 text-slate-400" />
+                <User className="w-6 h-6 sm:w-8 sm:h-8 text-slate-400" />
               </div>
             )}
           </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-2xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent truncate">
               {profile.name}
             </h1>
-            <p className="text-sm text-slate-400 font-mono">{profile.roll_no} • {profile.scholar_no}</p>
-            <p className="text-xs text-purple-400 font-semibold mt-1">{profile.course}</p>
+            <p className="text-xs sm:text-sm text-slate-400 font-mono truncate">{profile.roll_no} • {profile.scholar_no}</p>
+            <p className="text-[10px] sm:text-xs text-purple-400 font-semibold mt-0.5 sm:mt-1 truncate">{profile.course}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -573,17 +709,20 @@ export default function AttendanceDashboardClient({
           <select
             value={selectedSemester}
             onChange={(e) => handleSemesterChange(e.target.value)}
-            className="w-full sm:w-64 bg-slate-950/70 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-semibold text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+            disabled={isLoading}
+            className={`w-full sm:w-64 bg-slate-950/70 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-semibold text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-opacity ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {semesterOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.text}</option>
+              <option key={opt.value} value={opt.value} className="bg-slate-900 text-white font-semibold">
+                {opt.text}
+              </option>
             ))}
           </select>
         </div>
       )}
 
       {/* 3. Main Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 transition-opacity duration-300 ${isLoading ? 'opacity-50 animate-pulse' : ''}`}>
         <div className="glass-card p-5 flex flex-col items-center justify-center text-center">
           <span className="text-3xl font-black text-white">{summary.total_classes}</span>
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Total Classes</span>
@@ -604,18 +743,18 @@ export default function AttendanceDashboardClient({
       </div>
 
       {/* 4. Trend Chart */}
-      <div className="glass-card p-5 min-h-[320px] flex flex-col justify-between">
-        <div className="flex items-center justify-between border-b border-white/5 pb-3">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-purple-400" />
-            <h2 className="font-extrabold text-sm uppercase tracking-wider text-slate-200">Attendance Trend</h2>
+      <div className="glass-card p-4 sm:p-5 min-h-[240px] sm:min-h-[320px] flex flex-col justify-between">
+        <div className="flex items-center justify-between border-b border-white/5 pb-3 gap-2">
+          <div className="flex items-center gap-2 shrink-0">
+            <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+            <h2 className="font-extrabold text-xs sm:text-sm uppercase tracking-wider text-slate-200">Trend</h2>
           </div>
-          <div className="flex gap-1.5 bg-black/40 p-1 rounded-xl border border-white/5">
+          <div className="flex gap-1 sm:gap-1.5 bg-black/40 p-1 rounded-xl border border-white/5">
             {(["7d", "30d", "all"] as const).map(range => (
               <button
                 key={range}
                 onClick={() => setActiveChartRange(range)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeChartRange === range
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${activeChartRange === range
                   ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
                   : "text-slate-400 hover:text-slate-200"
                   }`}
@@ -626,12 +765,13 @@ export default function AttendanceDashboardClient({
           </div>
         </div>
 
-        <div className="mt-4 flex-grow relative flex items-center justify-center">
+        <div className="mt-3 sm:mt-4 flex-grow relative flex items-center justify-center">
           {isClient && trendPoints.length >= 2 ? (
-            <div className="w-full h-[200px] px-2 animate-in fade-in duration-300">
+            <div className="w-full h-[160px] sm:h-[200px] animate-in fade-in duration-300">
               <svg
-                viewBox="0 0 1000 200"
-                className="w-full h-full overflow-visible"
+                viewBox="0 0 1000 210"
+                className="w-full h-full"
+                preserveAspectRatio="xMidYMid meet"
               >
                 <defs>
                   <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
@@ -640,11 +780,15 @@ export default function AttendanceDashboardClient({
                   </linearGradient>
                 </defs>
 
-                {/* Y-axis Labels & Grid Lines */}
-                {[0, 25, 50, 75, 100].map((pct) => {
-                  const y = svgChartDimensions.height - (pct / 100) * svgChartDimensions.height;
+                {/* Y-axis Labels & Grid Lines — auto-scaled to data range */}
+                {chartPathData.yTicks.map((tickVal, i) => {
+                  const yRange = chartPathData.yMax - chartPathData.yMin;
+                  const y = topPad + availHeight - ((tickVal - chartPathData.yMin) / yRange) * availHeight;
+                  const isEdge = i === 0 || i === chartPathData.yTicks.length - 1;
+                  // Format label: show decimal only if step is fractional
+                  const label = tickVal % 1 === 0 ? `${tickVal}%` : `${tickVal.toFixed(1)}%`;
                   return (
-                    <g key={pct}>
+                    <g key={tickVal}>
                       <line
                         x1={leftPad}
                         y1={y}
@@ -652,17 +796,17 @@ export default function AttendanceDashboardClient({
                         y2={y}
                         stroke="rgba(255,255,255,0.05)"
                         strokeWidth="1"
-                        strokeDasharray={pct === 0 || pct === 100 ? "0" : "4 4"}
+                        strokeDasharray={isEdge ? "0" : "4 4"}
                       />
                       <text
                         x="10"
-                        y={pct === 100 ? y + 9 : pct === 0 ? y - 3 : y + 3}
-                        fill="rgba(255,255,255,0.4)"
-                        fontSize="11"
+                        y={y + 4}
+                        fill="rgba(255,255,255,0.35)"
+                        fontSize="10"
                         fontWeight="bold"
                         className="font-mono"
                       >
-                        {pct}%
+                        {label}
                       </text>
                     </g>
                   );
@@ -682,7 +826,9 @@ export default function AttendanceDashboardClient({
 
                 {/* X-Axis Date Labels */}
                 {chartPathData.dots.length > 0 && (() => {
-                  const step = Math.max(1, Math.floor(chartPathData.dots.length / 4));
+                  // Show fewer labels on mobile-sized viewports
+                  const maxLabels = 5;
+                  const step = Math.max(1, Math.floor(chartPathData.dots.length / maxLabels));
                   const labelsToRender = [];
                   for (let i = 0; i < chartPathData.dots.length; i += step) {
                     labelsToRender.push(chartPathData.dots[i]);
@@ -695,8 +841,8 @@ export default function AttendanceDashboardClient({
                     <text
                       key={idx}
                       x={pt.x}
-                      y={svgChartDimensions.height + 22}
-                      fill="rgba(255,255,255,0.4)"
+                      y={topPad + availHeight + 20}
+                      fill="rgba(255,255,255,0.35)"
                       fontSize="10"
                       fontWeight="bold"
                       textAnchor="middle"
@@ -707,17 +853,17 @@ export default function AttendanceDashboardClient({
                   ));
                 })()}
 
-                {/* Tooltip circles on points */}
+                {/* Data point circles — smaller on mobile, interactive on desktop */}
                 {chartPathData.dots.map((pt, idx) => (
                   <circle
                     key={idx}
                     cx={pt.x}
                     cy={pt.y}
-                    r="5.5"
+                    r="4"
                     fill="#ec4899"
                     stroke="#fff"
-                    strokeWidth="2"
-                    className="cursor-pointer transition-colors duration-150 hover:fill-white hover:stroke-purple-500"
+                    strokeWidth="1.5"
+                    className="cursor-pointer"
                     onMouseEnter={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
                       setTooltip({
@@ -789,14 +935,15 @@ export default function AttendanceDashboardClient({
           <h2 className="font-extrabold text-sm uppercase tracking-wider text-slate-200">Filter Attendance Logs</h2>
         </div>
 
-        <form onSubmit={handleApplyFilters} className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+        <form onSubmit={handleApplyFilters} className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 items-end">
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">From Date</label>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+              disabled={isLoading}
+              className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-purple-500 transition-opacity ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -805,7 +952,8 @@ export default function AttendanceDashboardClient({
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+              disabled={isLoading}
+              className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-purple-500 transition-opacity ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -813,20 +961,28 @@ export default function AttendanceDashboardClient({
             <select
               value={selectedSubject}
               onChange={(e) => setSelectedSubject(e.target.value)}
-              className="w-full bg-slate-950/70 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+              disabled={isLoading}
+              className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition-opacity ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <option value="--All--">All Subjects</option>
-              <option value="--Absents--">Absents Only</option>
+              <option value="--All--" className="bg-slate-900 text-white font-semibold">All Subjects</option>
+              <option value="--Absents--" className="bg-slate-900 text-white font-semibold">Absents Only</option>
               {subjects.map(s => (
-                <option key={s.name} value={s.name}>{s.short_name}</option>
+                <option key={s.name} value={s.name} className="bg-slate-900 text-white font-semibold">
+                  {s.short_name}
+                </option>
               ))}
             </select>
           </div>
           <button
             type="submit"
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-extrabold text-sm uppercase tracking-wider py-2.5 rounded-xl active:scale-[0.98] transition-all"
+            disabled={isLoading}
+            className={`w-full col-span-2 sm:col-span-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider py-2.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            Apply Filter
+            {isLoading ? (
+              <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Loading…</>
+            ) : (
+              'Apply Filter'
+            )}
           </button>
         </form>
       </div>
@@ -913,17 +1069,19 @@ export default function AttendanceDashboardClient({
           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Bunk / Attend Impact */}
             <div className="space-y-2">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Next Class Impact</span>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-2.5 text-center">
-                  <span className="text-[10px] font-bold text-slate-400 block">Bunk Class</span>
-                  <span className="text-base font-black text-red-400">-{insights.bunkLoss}%</span>
-                  <span className="text-[9px] text-red-500/60 block mt-0.5">(7 bunks ≈ -{insights.loss7}%)</span>
+              <span className="text-[12px] font-bold text-slate-400 uppercase tracking-widest block mb-2">⚡ IMPACT OF NEXT CLASS</span>
+              <div className="flex gap-2">
+                <div className="flex-1 rounded p-2 text-center border border-red-500/20 bg-red-500/10">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase">Bunk</div>
+                  <div className="text-lg font-bold text-red-500">-{insights.bunkLoss}%</div>
+                  <div className="text-[10px] text-slate-500">loss per class</div>
+                  <div className="text-[10px] text-red-500 mt-0.5">(7 classes ≈ -{insights.loss7}% loss overall)</div>
                 </div>
-                <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-2.5 text-center">
-                  <span className="text-[10px] font-bold text-slate-400 block">Attend Class</span>
-                  <span className="text-base font-black text-emerald-400">+{insights.attendGain}%</span>
-                  <span className="text-[9px] text-emerald-500/60 block mt-0.5">(7 classes ≈ +{insights.gain7}%)</span>
+                <div className="flex-1 rounded p-2 text-center border border-emerald-500/20 bg-emerald-500/10">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase">Attend</div>
+                  <div className="text-lg font-bold text-emerald-500">+{insights.attendGain}%</div>
+                  <div className="text-[10px] text-slate-500">gain per class</div>
+                  <div className="text-[10px] text-emerald-500 mt-0.5">(7 classes ≈ +{insights.gain7}% gain overall)</div>
                 </div>
               </div>
             </div>
@@ -931,17 +1089,19 @@ export default function AttendanceDashboardClient({
             {/* Peak & Lowest stats */}
             {insights.peak && insights.lowest && (
               <div className="space-y-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Attendance Records</span>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-2.5 text-center">
-                    <span className="text-[9px] font-bold text-slate-400 block uppercase">Peak</span>
-                    <span className="text-sm font-black text-emerald-400">{insights.peak.pct}%</span>
-                    <span className="text-[9px] text-slate-500 block mt-0.5">{insights.peak.p}/{insights.peak.t} classes</span>
+                <span className="text-[12px] font-bold text-slate-400 uppercase tracking-widest block mb-2">📊 ATTENDANCE RECORDS</span>
+                <div className="flex gap-2">
+                  <div className="flex-1 rounded p-2 text-center border border-emerald-500/20 bg-emerald-500/10">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">Peak</div>
+                    <div className="text-xl font-bold text-emerald-500">{insights.peak.pct}%</div>
+                    <div className="text-[11px] text-slate-500">{insights.peak.p}/{insights.peak.t} classes</div>
+                    <div className="text-[10px] text-emerald-500 mt-0.5">{insights.peak.dateFormatted}</div>
                   </div>
-                  <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-2.5 text-center">
-                    <span className="text-[9px] font-bold text-slate-400 block uppercase">Lowest</span>
-                    <span className="text-sm font-black text-red-400">{insights.lowest.pct}%</span>
-                    <span className="text-[9px] text-slate-500 block mt-0.5">{insights.lowest.p}/{insights.lowest.t} classes</span>
+                  <div className="flex-1 rounded p-2 text-center border border-red-500/20 bg-red-500/10">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">Lowest</div>
+                    <div className="text-xl font-bold text-red-500">{insights.lowest.pct}%</div>
+                    <div className="text-[11px] text-slate-500">{insights.lowest.p}/{insights.lowest.t} classes</div>
+                    <div className="text-[10px] text-red-500 mt-0.5">{insights.lowest.dateFormatted}</div>
                   </div>
                 </div>
               </div>
@@ -949,36 +1109,34 @@ export default function AttendanceDashboardClient({
 
             {/* Target Attend/Skip projections */}
             <div className="space-y-3">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Projections</span>
-
               {/* Needed Targets */}
-              <div className="space-y-1">
-                <span className="text-[9px] font-extrabold text-amber-500/80 uppercase tracking-wider block">📈 Needed</span>
-                <div className="flex flex-wrap gap-1.5">
+              <div className="space-y-2">
+                <span className="text-[12px] font-bold text-slate-400 uppercase tracking-widest block mb-2">📈 NEEDED</span>
+                <div className="flex flex-wrap gap-2">
                   {insights.targets
                     .filter(t => t.action === "attend" && t.count > 0)
                     .map(t => (
-                      <div key={t.target} className="text-[10px] font-bold px-2 py-1 rounded-xl border border-amber-500/20 bg-amber-500/5 text-amber-300">
-                        {t.target}% → <span className="text-white">Attend {t.count}</span>
+                      <div key={t.target} className="text-[12px] px-2 py-1 rounded border border-amber-500 text-amber-500 bg-amber-500/10">
+                        {t.target}% → <span className="font-bold text-white">Attend {t.count}</span>
                       </div>
                     ))
                   }
                   {insights.targets.filter(t => t.action === "attend" && t.count > 0).length === 0 && (
-                    <span className="text-[10px] text-emerald-400 font-bold">✨ Above all targets!</span>
+                    <div className="text-xs text-emerald-500">✨ Above all targets!</div>
                   )}
                 </div>
               </div>
 
               {/* Can Skip Targets */}
               {insights.targets.filter(t => t.action === "skip" && t.count > 0).length > 0 && (
-                <div className="space-y-1 pt-1.5 border-t border-white/5">
-                  <span className="text-[9px] font-extrabold text-emerald-500/80 uppercase tracking-wider block">🎯 Can Skip</span>
-                  <div className="flex flex-wrap gap-1.5">
+                <div className="space-y-2 pt-3 border-t border-white/5">
+                  <span className="text-[12px] font-bold text-slate-400 uppercase tracking-widest block mb-2">🎯 CAN SKIP</span>
+                  <div className="flex flex-wrap gap-2">
                     {insights.targets
                       .filter(t => t.action === "skip" && t.count > 0)
                       .map(t => (
-                        <div key={t.target} className="text-[10px] font-bold px-2 py-1 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-300">
-                          {t.target}% → <span className="text-white">Skip {t.count}</span>
+                        <div key={t.target} className="text-[12px] px-2 py-1 rounded border border-emerald-500 text-emerald-500 bg-emerald-500/10">
+                          {t.target}% → <span className="font-bold text-white">Skip {t.count}</span>
                         </div>
                       ))
                     }
@@ -1019,7 +1177,7 @@ export default function AttendanceDashboardClient({
           </div>
         </div>
 
-        <div className="mt-4 overflow-x-auto">
+        <div className="mt-4">
           <div className="w-full grid grid-cols-7 gap-2 sm:gap-3 text-center py-2 max-w-lg mx-auto">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, idx) => (
               <span key={idx} className="text-xs sm:text-sm font-bold text-slate-500 uppercase tracking-widest">{d}</span>
@@ -1066,7 +1224,7 @@ export default function AttendanceDashboardClient({
         </div>
 
         {/* Heatmap Legend */}
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-500 border-t border-white/5 pt-3">
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-4 text-[10px] font-extrabold uppercase tracking-wider text-slate-500 border-t border-white/5 pt-3">
           <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-600 inline-block"></span>100%</div>
           <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-400 inline-block"></span>&gt;75%</div>
           <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-yellow-400 inline-block"></span>&gt;50%</div>

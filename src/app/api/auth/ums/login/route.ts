@@ -41,11 +41,15 @@ export async function POST(req: NextRequest) {
     });
 
     // Check if login failed (server returns login page again instead of dashboard)
-    const isFailedRedirect = postRes.status === 302 && postRes.headers.location?.includes('Login');
+    const location = postRes.headers.location || '';
+    const isFailedRedirect = postRes.status === 302 && 
+      (location.includes('Login') || location.includes('Home')) && 
+      !location.includes('Dashboard') && !location.includes('Student');
+      
     const responseText = postRes.data ? postRes.data.toString() : '';
     const isFailedContent = responseText.includes('Secure Sign In') || responseText.includes('name="username"');
 
-    if (isFailedRedirect || isFailedContent) {
+    if (isFailedRedirect || isFailedContent || postRes.status === 200) {
       return NextResponse.json({ success: false, error: 'Invalid credentials or captcha.' }, { status: 401 });
     }
 

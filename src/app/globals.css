@@ -79,3 +79,25 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(168, 85, 247, 0.25) rgba(0, 0, 0, 0.2);
 }
+
+/* Shimmer/skeleton loading animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.02) 25%,
+    rgba(168, 85, 247, 0.08) 50%,
+    rgba(255, 255, 255, 0.02) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+

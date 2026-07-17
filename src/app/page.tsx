@@ -10,7 +10,8 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextUrl = searchParams.get("next");
-  const [activeTab, setActiveTab] = useState<"accsoft" | "ums">("accsoft");
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<"accsoft" | "ums">(tabParam === "ums" ? "ums" : "accsoft");
   
   // AccSoft State
   const [accUsername, setAccUsername] = useState("");

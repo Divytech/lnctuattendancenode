@@ -51,10 +51,14 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Check success by presence of ASP.NET_SessionId or redirect location
-    if (Object.keys(accsoftCookies).some(k => k.includes('ASP.NET_SessionId')) || 
-        (postRes.status === 302 && !postRes.headers.location?.includes('Login'))) {
-      
+    // Check success: On successful login, AccSoft usually returns 302 redirecting to a dashboard/student page.
+    // If it returns 200, it means it re-rendered the login page with an error.
+    const isSuccessRedirect = postRes.status === 302 && postRes.headers.location && !postRes.headers.location.includes('StudentLogin');
+    
+    const responseText = postRes.data ? postRes.data.toString() : '';
+    const isFailedContent = responseText.includes('Invalid User ID or Password') || responseText.includes('StudentLogin.aspx');
+
+    if (isSuccessRedirect || (!isFailedContent && postRes.status !== 200)) {
       const session = await getSession();
       session.accsoftCookies = accsoftCookies;
       session.isLoggedIn = true;

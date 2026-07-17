@@ -20,6 +20,10 @@ export async function GET(req: NextRequest) {
   await session.save();
   
   const redirectUrl = new URL('/', req.url);
+  if (type === 'ums' || type === 'accsoft') {
+    redirectUrl.searchParams.set('tab', type);
+  }
+  
   if (nextUrl) {
     redirectUrl.searchParams.set('next', nextUrl);
   }
