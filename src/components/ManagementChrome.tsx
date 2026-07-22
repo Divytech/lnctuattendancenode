@@ -5,6 +5,10 @@ import { ArrowLeft, LogOut, ArrowRight, UserCheck, ShieldAlert } from "lucide-re
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 
+import ImageModal from "./ImageModal";
+
+import { getDynamicGreeting, GreetingItem } from "@/lib/greetings";
+
 type Props = {
   name: string;
   enrollment: string;
@@ -23,13 +27,14 @@ const pageTitles: Record<string, string> = {
 
 export default function ManagementChrome({ name, enrollment, profilePic, hasAccsoftSession }: Props) {
   const pathname = usePathname();
-  const [greeting, setGreeting] = useState("Welcome");
+  const [greetingInfo, setGreetingInfo] = useState<GreetingItem>({
+    greeting: "Welcome",
+    subtitle: "",
+  });
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    const hrs = new Date().getHours();
-    if (hrs < 12) setGreeting("Good Morning");
-    else if (hrs < 17) setGreeting("Good Afternoon");
-    else setGreeting("Good Evening");
+    setGreetingInfo(getDynamicGreeting());
   }, []);
 
   if (pathname !== "/management") {
@@ -51,35 +56,47 @@ export default function ManagementChrome({ name, enrollment, profilePic, hasAccs
   }
 
   return (
-    <header className="relative mb-6 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-900/90 to-purple-950/20 px-6 py-8 shadow-[0_15px_40px_rgba(0,0,0,0.4)] backdrop-blur-xl">
-      {/* Decorative background lights */}
-      <div className="absolute right-0 top-0 -z-10 h-32 w-32 rounded-full bg-purple-500/10 blur-[80px]" />
-      <div className="absolute left-1/3 bottom-0 -z-10 h-24 w-24 rounded-full bg-teal-500/5 blur-[60px]" />
+    <>
+      <header className="relative mb-6 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-900/90 to-purple-950/20 px-6 py-8 shadow-[0_15px_40px_rgba(0,0,0,0.4)] backdrop-blur-xl">
+        {/* Decorative background lights */}
+        <div className="absolute right-0 top-0 -z-10 h-32 w-32 rounded-full bg-purple-500/10 blur-[80px]" />
+        <div className="absolute left-1/3 bottom-0 -z-10 h-24 w-24 rounded-full bg-teal-500/5 blur-[60px]" />
 
-      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-        
-        {/* Profile details */}
-        <div className="flex flex-col items-center text-center gap-4 sm:flex-row sm:text-left sm:gap-5">
-          <div className="relative group shrink-0">
-            <div className="absolute -inset-0.5 rounded-full bg-gradient-to-tr from-purple-500 to-teal-400 opacity-60 blur-sm group-hover:opacity-100 transition duration-500" />
-            <div className="relative h-[85px] w-[85px] overflow-hidden rounded-full border-2 border-slate-950 bg-slate-900 shadow-xl">
-              <img src={profilePic} alt={`${name}'s profile`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          
+          {/* Profile details */}
+          <div className="flex flex-col items-center text-center gap-4 sm:flex-row sm:text-left sm:gap-5">
+            <div 
+              onClick={() => setIsModalOpen(true)}
+              className="relative group shrink-0 cursor-pointer"
+              title="Click to view full photo"
+            >
+              <div className="absolute -inset-0.5 rounded-full bg-gradient-to-tr from-purple-500 to-teal-400 opacity-60 blur-sm group-hover:opacity-100 transition duration-500" />
+              <div className="relative h-[85px] w-[85px] overflow-hidden rounded-full border-2 border-slate-950 bg-slate-900 shadow-xl">
+                <img src={profilePic} alt={`${name}'s profile`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+              </div>
+              {/* Live Connection Badge */}
+              <span className="absolute bottom-0.5 right-0.5 flex h-4 w-4">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 border-2 border-slate-950"></span>
+              </span>
             </div>
-            {/* Live Connection Badge */}
-            <span className="absolute bottom-0.5 right-0.5 flex h-4 w-4">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 border-2 border-slate-950"></span>
-            </span>
-          </div>
 
           <div>
             <div className="flex flex-col items-center gap-1.5 sm:flex-row">
-              <span className="text-xs font-semibold uppercase tracking-wider text-purple-400">{greeting}</span>
+              <span className="text-xs font-bold tracking-wider text-teal-400">
+                {greetingInfo.greeting}
+              </span>
               <span className="hidden sm:inline text-slate-600">•</span>
               <div className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
                 <UserCheck className="h-3 w-3" /> UMS Active
               </div>
             </div>
+            {greetingInfo.subtitle && (
+              <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+                {greetingInfo.subtitle}
+              </p>
+            )}
             <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">
               {name}
             </h1>
@@ -107,5 +124,14 @@ export default function ManagementChrome({ name, enrollment, profilePic, hasAccs
         </div>
       </div>
     </header>
+
+    <ImageModal
+      isOpen={isModalOpen}
+      onClose={() => setIsModalOpen(false)}
+      imageSrc={profilePic}
+      title={name}
+      subtitle={`Enrollment: ${enrollment}`}
+    />
+    </>
   );
 }

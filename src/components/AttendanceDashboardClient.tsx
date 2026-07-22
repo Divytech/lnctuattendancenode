@@ -887,32 +887,34 @@ export default function AttendanceDashboardClient({
       {/* 5. Subjects View Table */}
       {subjects.length > 0 && (
         <div className="glass-card overflow-hidden">
-          <div className="p-4 border-b border-white/10 bg-white/3 flex items-center gap-2">
+          <div className="p-3.5 sm:p-4 border-b border-white/10 bg-white/3 flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-purple-400" />
-            <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-200">Subject Wise Overview</h2>
+            <h2 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-200">Subject Wise Overview</h2>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="w-full">
+            <table className="w-full text-left border-collapse table-fixed">
               <thead>
-                <tr className="bg-black/30 text-slate-400 text-xs uppercase tracking-wider border-b border-white/5">
-                  <th className="p-4 font-extrabold">Subject</th>
-                  <th className="p-4 font-extrabold text-center">Total</th>
-                  <th className="p-4 font-extrabold text-center">P</th>
-                  <th className="p-4 font-extrabold text-center">A</th>
-                  <th className="p-4 font-extrabold text-right">%</th>
+                <tr className="bg-black/30 text-slate-400 text-[10px] sm:text-xs uppercase tracking-wider border-b border-white/5">
+                  <th className="p-2 sm:p-4 font-extrabold w-[38%] sm:w-[45%]">Subject</th>
+                  <th className="p-2 sm:p-4 font-extrabold text-center w-[15%] sm:w-[13%]">Total</th>
+                  <th className="p-2 sm:p-4 font-extrabold text-center w-[15%] sm:w-[13%]">P</th>
+                  <th className="p-2 sm:p-4 font-extrabold text-center w-[15%] sm:w-[13%]">A</th>
+                  <th className="p-2 sm:p-4 font-extrabold text-right w-[17%] sm:w-[16%]">%</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 text-sm">
+              <tbody className="divide-y divide-white/5 text-xs sm:text-sm">
                 {subjects.map((s, i) => {
                   const pct = s.held > 0 ? Math.round((s.present / s.held) * 100) : 0;
                   return (
                     <tr key={i} className="hover:bg-white/3 transition-colors">
-                      <td className="p-4 font-bold text-slate-200">{s.short_name}</td>
-                      <td className="p-4 text-center text-slate-400 font-mono">{s.held}</td>
-                      <td className="p-4 text-center text-emerald-400 font-bold font-mono">{s.present}</td>
-                      <td className="p-4 text-center text-red-400 font-bold font-mono">{s.absent}</td>
-                      <td className="p-4 text-right">
-                        <span className={`inline-block px-2.5 py-1 rounded-lg text-xs font-black ${pct >= 75 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' :
+                      <td className="p-2 sm:p-4 font-bold text-slate-200 truncate" title={s.name}>
+                        <span className="truncate block">{s.short_name}</span>
+                      </td>
+                      <td className="p-2 sm:p-4 text-center text-slate-400 font-mono">{s.held}</td>
+                      <td className="p-2 sm:p-4 text-center text-emerald-400 font-bold font-mono">{s.present}</td>
+                      <td className="p-2 sm:p-4 text-center text-red-400 font-bold font-mono">{s.absent}</td>
+                      <td className="p-2 sm:p-4 text-right">
+                        <span className={`inline-block px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-black ${pct >= 75 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' :
                           pct >= 60 ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20' :
                             'bg-red-500/15 text-red-400 border border-red-500/20'
                           }`}>
@@ -929,13 +931,13 @@ export default function AttendanceDashboardClient({
       )}
 
       {/* 6. Filter Options */}
-      <div className="glass-card p-5">
+      <div className="glass-card p-4 sm:p-5">
         <div className="flex items-center gap-2 border-b border-white/5 pb-3 mb-4">
           <Filter className="w-5 h-5 text-purple-400" />
-          <h2 className="font-extrabold text-sm uppercase tracking-wider text-slate-200">Filter Attendance Logs</h2>
+          <h2 className="font-extrabold text-xs sm:text-sm uppercase tracking-wider text-slate-200">Filter Attendance Logs</h2>
         </div>
 
-        <form onSubmit={handleApplyFilters} className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 items-end">
+        <form onSubmit={handleApplyFilters} className="grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4 items-end">
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">From Date</label>
             <input
@@ -943,7 +945,7 @@ export default function AttendanceDashboardClient({
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               disabled={isLoading}
-              className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-purple-500 transition-opacity ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-purple-500 transition-opacity ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -953,7 +955,7 @@ export default function AttendanceDashboardClient({
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               disabled={isLoading}
-              className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-purple-500 transition-opacity ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-purple-500 transition-opacity ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -962,7 +964,7 @@ export default function AttendanceDashboardClient({
               value={selectedSubject}
               onChange={(e) => setSelectedSubject(e.target.value)}
               disabled={isLoading}
-              className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition-opacity ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`w-full bg-slate-950/70 border border-white/10 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-purple-500 transition-opacity ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <option value="--All--" className="bg-slate-900 text-white font-semibold">All Subjects</option>
               <option value="--Absents--" className="bg-slate-900 text-white font-semibold">Absents Only</option>
@@ -976,7 +978,7 @@ export default function AttendanceDashboardClient({
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full col-span-2 sm:col-span-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider py-2.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider py-2.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {isLoading ? (
               <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Loading…</>
@@ -989,12 +991,12 @@ export default function AttendanceDashboardClient({
 
       {/* 7. Detailed Logs Log Table */}
       <div className="glass-card overflow-hidden">
-        <div className="p-4 border-b border-white/10 bg-white/3 flex items-center justify-between flex-wrap gap-3">
+        <div className="p-3.5 sm:p-4 border-b border-white/10 bg-white/3 flex items-center justify-between flex-wrap gap-2.5">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-purple-400" />
-            <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-200">
+            <h2 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-200">
               Detailed Attendance Log
-              <span className="ml-2.5 px-2 py-0.5 bg-slate-800 text-[10px] font-bold rounded-lg text-slate-300">
+              <span className="ml-2 px-1.5 py-0.5 bg-slate-800 text-[10px] font-bold rounded-lg text-slate-300">
                 {filteredLogs.filter(l => l.visible).length} Records
               </span>
             </h2>
@@ -1002,28 +1004,28 @@ export default function AttendanceDashboardClient({
           <div className="flex gap-2">
             <button
               onClick={exportToCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 text-xs font-bold rounded-xl transition-all"
+              className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 text-[11px] sm:text-xs font-bold rounded-xl transition-all"
             >
               <Download className="w-3.5 h-3.5" /> CSV
             </button>
             <button
               onClick={exportToPDF}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 text-xs font-bold rounded-xl transition-all"
+              className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 text-[11px] sm:text-xs font-bold rounded-xl transition-all"
             >
               <FileText className="w-3.5 h-3.5" /> PDF
             </button>
           </div>
         </div>
 
-        <div className="scroll-table max-h-[400px] overflow-y-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="scroll-table max-h-[420px] overflow-y-auto w-full">
+          <table className="w-full text-left border-collapse table-fixed">
             <thead className="sticky top-0 bg-slate-950/90 z-20">
               <tr className="text-slate-400 text-[10px] uppercase tracking-wider border-b border-white/5">
-                <th className="p-3 font-extrabold w-[50px] text-center">#</th>
-                <th className="p-3 font-extrabold w-[100px]">Date</th>
-                <th className="p-3 font-extrabold w-[60px] text-center">Per</th>
-                <th className="p-3 font-extrabold">Subject</th>
-                <th className="p-3 font-extrabold w-[80px] text-center">Status</th>
+                <th className="p-2 sm:p-3 font-extrabold w-[32px] sm:w-[50px] text-center">#</th>
+                <th className="p-2 sm:p-3 font-extrabold w-[78px] sm:w-[100px]">Date</th>
+                <th className="p-2 sm:p-3 font-extrabold w-[38px] sm:w-[60px] text-center">Per</th>
+                <th className="p-2 sm:p-3 font-extrabold">Subject</th>
+                <th className="p-2 sm:p-3 font-extrabold w-[52px] sm:w-[80px] text-center">Status</th>
               </tr>
             </thead>
             <tbody id="detailedLogTable">
@@ -1031,12 +1033,12 @@ export default function AttendanceDashboardClient({
                 if (!log.visible) return null;
                 return (
                   <tr key={idx} className="hover:bg-white/3 transition-colors">
-                    <td className="p-3 text-center text-slate-500 font-mono row-num">{log.displayIndex}</td>
-                    <td className="p-3 font-bold text-slate-300 font-mono">{log.date}</td>
-                    <td className="p-3 text-center text-slate-400 font-mono">{log.period}</td>
-                    <td className="p-3 text-slate-200">{log.short_name}</td>
-                    <td className="p-3 text-center">
-                      <span className={`inline-block px-2.5 py-0.5 rounded-lg text-xs font-black ${log.status === "P"
+                    <td className="p-2 sm:p-3 text-center text-slate-500 font-mono text-[10px] sm:text-xs row-num">{log.displayIndex}</td>
+                    <td className="p-2 sm:p-3 font-bold text-slate-300 font-mono text-[11px] sm:text-xs whitespace-nowrap">{log.date}</td>
+                    <td className="p-2 sm:p-3 text-center text-slate-400 font-mono text-[11px] sm:text-xs">{log.period}</td>
+                    <td className="p-2 sm:p-3 text-slate-200 text-xs sm:text-sm font-semibold truncate" title={log.subject}>{log.short_name}</td>
+                    <td className="p-2 sm:p-3 text-center">
+                      <span className={`inline-block px-1.5 sm:px-2.5 py-0.5 rounded sm:rounded-lg text-[10px] sm:text-xs font-black ${log.status === "P"
                         ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                         : "bg-red-500/10 text-red-400 border border-red-500/20"
                         }`}>

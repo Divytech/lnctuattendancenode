@@ -271,7 +271,8 @@ function LoginContent() {
                         value={captchaInput}
                         onChange={(e) => setCaptchaInput(e.target.value)}
                         className="w-1/2 bg-black/50 border border-gray-700 rounded-xl py-2.5 px-4 text-gray-200 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors text-center font-mono tracking-widest uppercase"
-                        placeholder="XXXXX"
+                        placeholder="XXXX"
+                        maxLength={4}
                         required
                       />
                     </div>

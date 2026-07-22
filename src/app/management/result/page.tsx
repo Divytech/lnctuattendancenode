@@ -74,18 +74,18 @@ export default async function ResultsPage() {
         <h2 className="text-lg font-bold">Academic Results</h2>
         <span className="text-xs bg-teal-500/20 text-teal-300 px-2 py-1 rounded">Semester Wise</span>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+      <div className="w-full overflow-hidden">
+        <table className="w-full text-left border-collapse table-fixed">
           <thead>
-            <tr className="bg-black/40 text-gray-400 text-xs uppercase tracking-wider">
-              <th className="p-4 font-medium">Session</th>
-              <th className="p-4 font-medium">Semester</th>
-              <th className="p-4 font-medium">Type</th>
-              <th className="p-4 font-medium">Result</th>
-              <th className="p-4 font-medium text-right">Action</th>
+            <tr className="bg-black/40 text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider">
+              <th className="p-2 sm:p-4 font-medium w-[22%] sm:w-[20%]">Session</th>
+              <th className="p-2 sm:p-4 font-medium w-[20%] sm:w-[20%]">Semester</th>
+              <th className="p-2 sm:p-4 font-medium w-[20%] sm:w-[25%]">Type</th>
+              <th className="p-2 sm:p-4 font-medium w-[20%] sm:w-[20%]">Result</th>
+              <th className="p-2 sm:p-4 font-medium text-right w-[18%] sm:w-[15%]">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5 text-sm">
+          <tbody className="divide-y divide-white/5 text-xs sm:text-sm">
             {error ? (
               <tr><td colSpan={5} className="p-8 text-center text-red-400">{error}</td></tr>
             ) : results.length === 0 ? (
@@ -93,11 +93,11 @@ export default async function ResultsPage() {
             ) : (
               results.map((r, i) => (
                 <tr key={i} className="hover:bg-white/5 transition-colors">
-                  <td className="p-4 font-medium text-gray-300">{r.session}</td>
-                  <td className="p-4 text-teal-400 font-bold">{r.semester}</td>
-                  <td className="p-4 text-gray-400">{r.examType}</td>
-                  <td className="p-4">
-                    <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${
+                  <td className="p-2 sm:p-4 font-medium text-gray-300 truncate">{r.session}</td>
+                  <td className="p-2 sm:p-4 text-teal-400 font-bold truncate">{r.semester}</td>
+                  <td className="p-2 sm:p-4 text-gray-400 truncate">{r.examType}</td>
+                  <td className="p-2 sm:p-4">
+                    <span className={`inline-block px-1.5 py-0.5 sm:px-2 sm:py-1 rounded text-[10px] sm:text-xs font-bold ${
                       r.result.toUpperCase().includes('PASS') ? 'bg-emerald-500/20 text-emerald-300' :
                       r.result.toUpperCase().includes('FAIL') ? 'bg-red-500/20 text-red-300' :
                       'bg-gray-500/20 text-gray-300'
@@ -105,17 +105,17 @@ export default async function ResultsPage() {
                       {r.result}
                     </span>
                   </td>
-                  <td className="p-4 text-right">
+                  <td className="p-2 sm:p-4 text-right">
                     {r.downloadId !== "N/A" ? (
                       <DownloadButton 
                         id={r.downloadId} 
                         endpoint="/api/management/download/result" 
                         filenamePrefix="Result" 
-                        className="inline-flex items-center text-xs bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded transition-colors disabled:opacity-50"
+                        className="inline-flex items-center text-[10px] sm:text-xs bg-teal-600 hover:bg-teal-500 text-white px-2 py-1 sm:px-3 sm:py-1.5 rounded transition-colors disabled:opacity-50"
                         text="PDF"
                       />
                     ) : (
-                      <span className="text-xs text-gray-600">N/A</span>
+                      <span className="text-[10px] sm:text-xs text-gray-600">N/A</span>
                     )}
                   </td>
                 </tr>

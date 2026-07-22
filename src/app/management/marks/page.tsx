@@ -124,22 +124,22 @@ export default async function MarksPage() {
             <h3 className="text-lg font-bold text-amber-300 mb-1">{marksData.semester} - Detailed Marks</h3>
             <p className="text-sm text-gray-400">{marksData.name}</p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="w-full overflow-hidden">
+            <table className="w-full text-left border-collapse table-fixed">
               <thead>
-                <tr className="bg-black/40 text-gray-400 text-xs uppercase tracking-wider">
-                  <th className="p-4 font-medium w-32">Subject Code</th>
-                  <th className="p-4 font-medium">Subject Name</th>
-                  <th className="p-4 font-medium text-right">Marks Obtained</th>
+                <tr className="bg-black/40 text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider">
+                  <th className="p-2.5 sm:p-4 font-medium w-[28%] sm:w-32">Subject Code</th>
+                  <th className="p-2.5 sm:p-4 font-medium">Subject Name</th>
+                  <th className="p-2.5 sm:p-4 font-medium text-right w-[24%] sm:w-[20%]">Marks Obtained</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 text-sm">
+              <tbody className="divide-y divide-white/5 text-xs sm:text-sm">
                 {marksData.subjects.map((sub: any, i: number) => (
                   <tr key={i} className="hover:bg-white/5 transition-colors">
-                    <td className="p-4 text-xs font-mono text-gray-400 bg-black/20">{sub.code}</td>
-                    <td className="p-4 font-medium text-gray-200">{sub.name}</td>
-                    <td className="p-4 text-right">
-                      <span className="text-xl font-black text-amber-400">{sub.marks}</span>
+                    <td className="p-2.5 sm:p-4 font-mono text-gray-400 bg-black/20 text-[11px] sm:text-xs truncate">{sub.code}</td>
+                    <td className="p-2.5 sm:p-4 font-medium text-gray-200 truncate">{sub.name}</td>
+                    <td className="p-2.5 sm:p-4 text-right">
+                      <span className="text-base sm:text-xl font-black text-amber-400">{sub.marks}</span>
                     </td>
                   </tr>
                 ))}

@@ -1,0 +1,166 @@
+"use client";
+
+import Link from "next/link";
+import { ArrowLeft, LogOut, ArrowRight, Activity, ShieldAlert } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
+import ImageModal from "./ImageModal";
+
+import { getDynamicGreeting, GreetingItem } from "@/lib/greetings";
+
+type Props = {
+  name: string;
+  scholarNo: string;
+  rollNo?: string;
+  profilePic: string;
+  hasUmsSession: boolean;
+};
+
+const pageTitles: Record<string, string> = {
+  "/accsoft/attendance": "Attendance Portal",
+  "/accsoft/registration": "Registration Form",
+  "/accsoft/no-dues": "No Dues Form",
+};
+
+export default function AccsoftChrome({
+  name,
+  scholarNo,
+  rollNo,
+  profilePic,
+  hasUmsSession,
+}: Props) {
+  const pathname = usePathname();
+  const [greetingInfo, setGreetingInfo] = useState<GreetingItem>({
+    greeting: "Welcome",
+    subtitle: "",
+  });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    setGreetingInfo(getDynamicGreeting());
+  }, []);
+
+  if (pathname !== "/accsoft") {
+    return (
+      <nav className="sticky top-4 z-40 mb-6 flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3.5 shadow-lg backdrop-blur-xl">
+        <div className="flex min-w-0 items-center gap-3">
+          <Link
+            href="/accsoft"
+            className="group flex shrink-0 items-center rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-300 transition-all hover:bg-white/10 hover:text-white"
+          >
+            <ArrowLeft className="mr-1.5 h-4 w-4 transition-transform group-hover:-translate-x-0.5" />{" "}
+            Back
+          </Link>
+          <span className="truncate text-base font-extrabold text-white">
+            {pageTitles[pathname] || "AccSoft"}
+          </span>
+        </div>
+        <a
+          href="/api/auth/logout?type=accsoft"
+          className="group flex shrink-0 items-center rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-2 text-xs font-bold text-red-300 transition-all hover:bg-red-500/25 hover:text-white"
+        >
+          <LogOut className="mr-1.5 h-3.5 w-3.5" /> Logout
+        </a>
+      </nav>
+    );
+  }
+
+  const defaultPic =
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='35' r='20' fill='white' opacity='0.3'/%3E%3Ccircle cx='50' cy='90' r='35' fill='white' opacity='0.3'/%3E%3C/svg%3E";
+
+  const displayPic = profilePic || defaultPic;
+
+  return (
+    <>
+      <header className="relative mb-6 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-900/90 to-indigo-950/20 px-6 py-8 shadow-[0_15px_40px_rgba(0,0,0,0.4)] backdrop-blur-xl">
+        {/* Decorative background lights */}
+        <div className="absolute right-0 top-0 -z-10 h-32 w-32 rounded-full bg-indigo-500/10 blur-[80px]" />
+        <div className="absolute left-1/3 bottom-0 -z-10 h-24 w-24 rounded-full bg-purple-500/5 blur-[60px]" />
+
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          {/* Profile details */}
+          <div className="flex flex-col items-center text-center gap-4 sm:flex-row sm:text-left sm:gap-5">
+            <div
+              onClick={() => setIsModalOpen(true)}
+              className="relative group shrink-0 cursor-pointer"
+              title="Click to view full photo"
+            >
+              <div className="absolute -inset-0.5 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-400 opacity-60 blur-sm group-hover:opacity-100 transition duration-500" />
+              <div className="relative h-[85px] w-[85px] overflow-hidden rounded-full border-2 border-slate-950 bg-slate-900 shadow-xl">
+                <img
+                  src={displayPic}
+                  alt={`${name}'s profile`}
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                />
+              </div>
+              {/* Live Connection Badge */}
+              <span className="absolute bottom-0.5 right-0.5 flex h-4 w-4">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-purple-500 border-2 border-slate-950"></span>
+              </span>
+            </div>
+
+            <div>
+              <div className="flex flex-col items-center gap-1.5 sm:flex-row">
+                <span className="text-xs font-bold tracking-wider text-purple-400">
+                  {greetingInfo.greeting}
+                </span>
+                <span className="hidden sm:inline text-slate-600">•</span>
+                <div className="flex items-center gap-1 rounded-full bg-purple-500/10 px-2.5 py-0.5 text-[10px] font-bold text-purple-400 border border-purple-500/20">
+                  <Activity className="h-3 w-3" /> AccSoft Active
+                </div>
+              </div>
+              {greetingInfo.subtitle && (
+                <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+                  {greetingInfo.subtitle}
+                </p>
+              )}
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">
+                {name || "Student"}
+              </h1>
+              <p className="mt-1 font-mono text-sm font-bold tracking-wide text-slate-400">
+                Scholar No: {scholarNo || "N/A"}{" "}
+                {rollNo && rollNo !== "N/A" ? `• Roll: ${rollNo}` : ""}
+              </p>
+            </div>
+          </div>
+
+          {/* Buttons / Actions */}
+          <div className="flex flex-wrap items-center justify-center gap-3 shrink-0">
+            {hasUmsSession ? (
+              <Link
+                href="/management"
+                className="group flex items-center rounded-2xl border border-teal-500/30 bg-teal-500/10 px-4 py-2.5 text-xs font-bold text-teal-300 transition-all hover:bg-teal-500/20 hover:text-white sm:text-sm"
+              >
+                UMS Portal{" "}
+                <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            ) : (
+              <Link
+                href="/?tab=ums"
+                className="group flex items-center rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-400 transition-all hover:bg-white/10 hover:text-white sm:text-sm"
+              >
+                <ShieldAlert className="mr-1.5 h-4 w-4" /> UMS Offline
+              </Link>
+            )}
+
+            <a
+              href="/api/auth/logout?type=accsoft"
+              className="group flex items-center rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs font-bold text-red-300 transition-all hover:bg-red-500/25 hover:text-white sm:text-sm"
+            >
+              <LogOut className="mr-1.5 h-4 w-4" /> Logout
+            </a>
+          </div>
+        </div>
+      </header>
+
+      <ImageModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        imageSrc={displayPic}
+        title={name || "Student Photo"}
+        subtitle={`Scholar No: ${scholarNo || "N/A"}`}
+      />
+    </>
+  );
+}

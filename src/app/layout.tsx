@@ -21,9 +21,9 @@ export default function RootLayout({
             var minimalUserResponseInMiliseconds = 200;
             function check() { 
                 console.clear();
-                var before = new Date().getTime();
+                before = new Date().getTime();
                 debugger;
-                var after = new Date().getTime();
+                after = new Date().getTime();
                 if (after - before > minimalUserResponseInMiliseconds) { 
                     document.write(" Dont open Developer Tools. ");
                     self.location.replace(
@@ -31,11 +31,16 @@ export default function RootLayout({
                             window.location.protocol.length
                         )
                     );  
+                } else { 
+                    before = null;
+                    after = null;
+                    delete before;
+                    delete after;
                 }
                 setTimeout(check, 100);
             }
             check();
-            window.addEventListener('load', function () { 
+            window.onload = function () { 
                 document.addEventListener("contextmenu", function (e) { 
                     e.preventDefault();
                 }, false);
@@ -70,7 +75,7 @@ export default function RootLayout({
                     e.preventDefault();
                     return false;
                 }
-            });
+            };
           `}
         </Script>
         <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full pointer-events-none -z-10" />
